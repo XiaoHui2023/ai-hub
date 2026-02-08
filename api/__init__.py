@@ -1,41 +1,42 @@
-from fastapi import FastAPI, HTTPException, Request
-from config import InputModels
-from . import core
-from .chat import Chat
+from fastapi import FastAPI
+from config import Config
+from .chat import create_chat_router
 import uvicorn
-import logging
+import threading
+
 
 class App:
-    def __init__(self,config:InputModels):
+    def __init__(self, config: Config):
         self._config = config
-        self.app = FastAPI()
+        self._app = FastAPI()
+        self._app.include_router(create_chat_router(config))
+        self._server: uvicorn.Server | None = None
+        self._thread: threading.Thread | None = None
 
-        # 在实例化后注册路由
-        self.app.add_api_route("/chat", self.chat, methods=["POST"])
+    def start(self):
+        """在后台线程中启动服务器"""
+        self._server = uvicorn.Server(
+            uvicorn.Config(
+                self._app,
+                host=self._config.ip,
+                port=self._config.port,
+                log_config=None,
+            )
+        )
+        self._thread = threading.Thread(target=self._server.run, daemon=True)
+        self._thread.start()
 
+    def stop(self):
+        """停止服务器"""
+        if self._server:
+            self._server.should_exit = True
+        if self._thread:
+            self._thread.join(timeout=5)
 
     @property
-    def config(self) -> InputModels:
-        try:
-            return self._config.reload()
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"加载配置失败: {e}")
-
-    def run(self):
-        uvicorn.run(self.app, host=self.config.ip, port=self.config.port)
-
-    async def chat(self, request: Request, payload: Chat):
-        # 获取客户端IP地址
-        client_ip = request.client.host
-        info = f"chat from IP: {client_ip}\npayload: {payload.text}"
-        
-        try:
-            response = await core.Chat(self.config, payload).run()
-            logging.info(f"{info}\nresponse: {response}")
-            return response
-        except Exception as e:
-            logging.exception(f"{info}\nerror: {e}")
-            raise
+    def is_running(self) -> bool:
+        """服务器是否在运行"""
+        return self._thread is not None and self._thread.is_alive()
 
 
 __all__ = [
