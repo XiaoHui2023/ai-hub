@@ -14,30 +14,35 @@ class Providers(BaseModel):
     qanything: Optional[BaseProvider] = Field(default=None)
     siliconflow: Optional[BaseProvider] = Field(default=None)
 
+    @property
+    def providers(self) -> dict[str, Optional[BaseProvider]]:
+        """所有声明的 provider"""
+        return {name: getattr(self, name) for name in self.__class__.model_fields}
+
+    @property
+    def configured_providers(self) -> dict[str, Optional[BaseProvider]]:
+        """所有已配置的 provider"""
+        return {k: v for k, v in self.providers.items() if v is not None and v.is_valid}
+
     def __iter__(self) -> Iterator[BaseProvider]:
         """遍历所有已配置的 provider"""
-        for name in self.__class__.model_fields:
-            value = getattr(self, name)
-            if value is not None:
-                yield value
+        for provider in self.configured_providers.values():
+            yield provider
 
     @property
     def configured_names(self) -> list[str]:
         """所有已配置的 provider 名称"""
-        return [name for name in self.__class__.model_fields if getattr(self, name) is not None]
+        return list(self.configured_providers.keys())
 
     def __getitem__(self, name: str) -> BaseProvider:
         """按名称获取 provider：providers["grok"]"""
-        if name not in self.__class__.model_fields:
+        if name not in self.configured_providers:
             raise KeyError(f"未知的 provider: '{name}'")
-        value = getattr(self, name)
-        if value is None:
-            raise KeyError(f"provider '{name}' 未配置")
-        return value
+        return self.configured_providers[name]
 
     def __contains__(self, name: str) -> bool:
         """检查 provider 是否已配置：'grok' in providers"""
-        return name in self.__class__.model_fields and getattr(self, name) is not None
+        return name in self.configured_providers
 
     def __len__(self) -> int:
         """已配置的 provider 数量"""

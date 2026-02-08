@@ -5,10 +5,11 @@ from openai import AsyncOpenAI, AuthenticationError, PermissionDeniedError, Rate
 from config.providers.key_pool import KeyPool
 import httpx
 import logging
+import requests
+import asyncio
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
-
 
 class BaseOperation(ABC):
     def __init__(
@@ -50,6 +51,11 @@ class BaseOperation(ABC):
         if self._key_pool:
             self.api_key = self._key_pool.next()
 
+    @abstractmethod
+    async def run(self, *args, **kwargs) -> any:
+        """运行"""
+        pass
+
     def _switch_api_key(self) -> bool:
         """切换到下一个 API key，返回是否成功切换"""
         if not self._key_pool:
@@ -86,11 +92,6 @@ class BaseOperation(ABC):
 
         raise last_error
 
-    @abstractmethod
-    async def run(self, *args, **kwargs) -> any:
-        """运行"""
-        pass
-
     @property
     def full_url(self) -> str:
         """完整请求地址"""
@@ -116,3 +117,23 @@ class BaseOperation(ABC):
             max_retries=self.max_retries,
             http_client=http_client,
         )
+
+        
+    async def _request(self,url:str,data:dict) -> dict:
+        """请求"""
+        response = await asyncio.to_thread(requests.post,
+            url=url,
+            json=data,
+            headers={
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
+            }
+        )
+        
+        # 检查响应状态
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f'{response.status_code} {response.text}')
+
+   

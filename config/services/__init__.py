@@ -8,7 +8,7 @@ class Services(BaseModel):
     text_to_image: Optional[Service] = Field(default=None,description="文生图服务")
     context: Optional[Service] = Field(default=None,description="上下文服务")
     vision: Optional[Service] = Field(default=None,description="视觉理解服务")
-    web_search: Optional[Service] = Field(default=None,description="网络搜索服务")
+    search: Optional[Service] = Field(default=None,description="网络搜索服务")
 
     def __iter__(self) -> Iterator[tuple[str, Service]]:
         """遍历已配置的 (服务名, Service)"""

@@ -3,8 +3,7 @@ from core import set_log, load_configs
 from config import Config
 from api import App
 import argparse
-import sys
-import os
+import time
 
 DEFAULT_FILE = str(Path(__file__).parent / "default.yaml")
 
@@ -19,22 +18,13 @@ def main(input_file: str):
     metadata = load_configs(DEFAULT_FILE, input_file)
     cfg = Config(**metadata)
     set_log(cfg.log)
-
     app = App(cfg)
     app.start()
 
-    print("\n  r + Enter  重启  |  q + Enter  退出\n")
-
     try:
         while app.is_running:
-            cmd = input().strip().lower()
-            if cmd == "r":
-                app.stop()
-                os.execv(sys.executable, [sys.executable] + sys.argv)
-            elif cmd == "q":
-                app.stop()
-                break
-    except (KeyboardInterrupt, EOFError):
+            time.sleep(0.1)
+    except KeyboardInterrupt:
         app.stop()
 
 

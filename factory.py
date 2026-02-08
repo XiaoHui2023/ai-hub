@@ -24,6 +24,11 @@ def create_operation(
     stream: 客户端是否请求流式传输
     **kwargs: 传递给实现类构造函数的额外参数 (path, params, ...)
     """
+    # 验证 model 是否在服务允许列表中
+    if service not in cfg.services:
+        raise KeyError(f"服务 '{service}' 未在 config 中配置")
+    service_cfg = cfg.services[service]
+
     # config 获取 provider 配置
     if provider not in cfg.providers:
         raise KeyError(
@@ -31,11 +36,6 @@ def create_operation(
             f"已配置的 provider: {cfg.providers.configured_names}"
         )
     provider_cfg = cfg.providers[provider]
-
-    # 验证 model 是否在服务允许列表中
-    if service not in cfg.services:
-        raise KeyError(f"服务 '{service}' 未在 config 中配置")
-    service_cfg = cfg.services[service]
 
     if provider not in service_cfg:
         raise KeyError(

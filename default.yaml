@@ -65,6 +65,8 @@ services:
       models:
         - "deepseek-ai/deepseek-vl2"
         - "Qwen/Qwen2-VL-72B-Instruct"
-  web_search:
+  search:
     bocha:
-      models: []
+      models:
+        - "web-search"
+        - "ai-search"
