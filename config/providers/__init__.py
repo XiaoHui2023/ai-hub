@@ -13,6 +13,7 @@ class Providers(BaseModel):
     liblib: Optional[LibLib] = Field(default=None)
     qanything: Optional[BaseProvider] = Field(default=None)
     siliconflow: Optional[BaseProvider] = Field(default=None)
+    mem0: Optional[BaseProvider] = Field(default=None)
 
     @property
     def providers(self) -> dict[str, Optional[BaseProvider]]:

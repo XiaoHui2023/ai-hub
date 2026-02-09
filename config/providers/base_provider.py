@@ -6,6 +6,7 @@ class BaseProvider(BaseModel):
     model_config = ConfigDict(extra="forbid")
     base_url: str = Field(...,description="基础URL")
     api_keys: List[str] = Field(default_factory=list,description="API密钥列表")
+    auth_scheme: str = Field(default="Bearer",description="认证方案（Bearer / Token 等）")
     proxy: Optional[str] = Field(default=None,description="代理")
     use_proxy: bool = Field(default=False,description="是否使用代理")
 
@@ -17,6 +18,13 @@ class BaseProvider(BaseModel):
         if self._key_pool is None:
             self._key_pool = KeyPool(self.api_keys)
         return self._key_pool
+
+    def get_headers(self, api_key: str) -> dict:
+        """构建请求头，子类可覆盖以自定义认证方式"""
+        return {
+            'Authorization': f'{self.auth_scheme} {api_key}',
+            'Content-Type': 'application/json',
+        }
 
     @property
     def param(self) -> dict:

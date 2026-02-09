@@ -11,6 +11,7 @@ class Service(BaseModel):
     liblib: Optional[Provider] = Field(default=None,description="Liblib")
     qanything: Optional[Provider] = Field(default=None,description="QAnything")
     siliconflow: Optional[Provider] = Field(default=None,description="硅基流动")
+    mem0: Optional[Provider] = Field(default=None,description="Mem0")
 
     def __iter__(self) -> Iterator[tuple[str, Provider]]:
         """遍历已配置的 (provider名, Provider)"""

@@ -28,27 +28,42 @@ def send(url: str, payload: dict) -> None:
         print(f"URLError: {e.reason}")
 
 
-def test_search(url: str, provider: str, model: str, query: str) -> None:
+def test_add(base_url: str, provider: str, model: str) -> None:
     print("=" * 40)
-    print(f"测试: 搜索  [{provider} / {model}]")
-    print(f"查询: {query}")
+    print(f"测试: 上下文添加  [{provider} / {model}]")
     print("=" * 40)
-    send(url, {
+    send(f"{base_url}/context/add", {
         "provider": provider,
         "model": model,
-        "query": query,
+        "content": "我喜欢用Python写代码，常用FastAPI框架",
+        "user_id": "test_user",
+        "tag": "preference",
+    })
+
+
+def test_search(base_url: str, provider: str, model: str) -> None:
+    print("=" * 40)
+    print(f"测试: 上下文搜索  [{provider} / {model}]")
+    print("=" * 40)
+    send(f"{base_url}/context/search", {
+        "provider": provider,
+        "model": model,
+        "query": "我喜欢什么编程语言",
+        "user_id": "test_user",
+        "tag": "preference",
     })
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Search API 测试")
+    parser = argparse.ArgumentParser(description="Context API 测试")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="服务器IP")
     parser.add_argument("--port", type=int, default=9999, help="服务器端口")
-    parser.add_argument("--provider", type=str, default="bocha", help="提供商")
-    parser.add_argument("--model", type=str, default="web-search", help="模型")
-    parser.add_argument("--query", type=str, default="2026年Python最新的Web框架有哪些", help="搜索内容")
+    parser.add_argument("--provider", type=str, default="mem0", help="提供商")
+    parser.add_argument("--model", type=str, default="", help="模型")
     args = parser.parse_args()
 
-    url = f"http://{args.host}:{args.port}/search/query"
+    base_url = f"http://{args.host}:{args.port}"
 
-    test_search(url, args.provider, args.model, args.query)
+    test_add(base_url, args.provider, args.model)
+    print()
+    test_search(base_url, args.provider, args.model)

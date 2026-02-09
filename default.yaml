@@ -22,6 +22,10 @@ providers:
     base_url: "https://openapi.youdao.com/q_anything/api"
   siliconflow:
     base_url: "https://api.siliconflow.cn/v1"
+  mem0:
+    base_url: "https://api.mem0.ai"
+    auth_scheme: "Token"
+    use_proxy: true
 services:
   chat:
     aliyun:
@@ -50,13 +54,13 @@ services:
     grok:
       models:
         - "grok-2-image"
-    liblib:
-      models:
-        - "5d7e67009b344550bc1aa6ccbfa1d7f4"
   context:
     qanything:
       models:
         - "QAnything 4o mini"
+    mem0:
+      models:
+        - ""
   vision:
     aliyun:
       models:

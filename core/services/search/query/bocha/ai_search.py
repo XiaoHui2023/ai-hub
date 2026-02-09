@@ -1,6 +1,8 @@
 from .base_agent import BaseAgent
+from core.services import register
 import json
 
+@register("search", "query", "bocha", "ai-search")
 class AISearch(BaseAgent):
     def __init__(
             self,
@@ -9,7 +11,7 @@ class AISearch(BaseAgent):
             **kwargs,
     ):
         super().__init__(
-            endpoint="ai-search",
+            path="ai-search",
             **kwargs
         )
         self.answer = answer
@@ -29,7 +31,7 @@ class AISearch(BaseAgent):
             response = response["messages"]
             response = [json.loads(x["content"]) for x in response if x["content_type"] not in ["video","image"]]
             response = [x["value"] for x in response][0]
-            response = [{k: v for k, v in x.items() if k in ["name","snippet","summary","datePublished","dateLastCrawled"]} for x in response]
+            response = [{k: v for k, v in x.items() if k in ["name","summary","datePublished","dateLastCrawled"]} for x in response]
         except:
             raise Exception(f'Failed to parse response: {response}')
 

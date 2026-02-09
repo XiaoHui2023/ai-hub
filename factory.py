@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def create_operation(
     cfg: Config,
     service: str,
+    operation: str,
     provider: str,
     model: str,
     stream: bool = False,
@@ -18,7 +19,8 @@ def create_operation(
     根据 config 组装一个可运行的 Operation 实例
 
     cfg: 应用配置
-    service: 服务名 (chat, vision, ...)
+    service: 服务名 (chat, search, ...)
+    operation: 操作名 (completion, query, ...)
     provider: 提供商名 (grok, openai, aliyun, ...)
     model: 模型名
     stream: 客户端是否请求流式传输
@@ -57,14 +59,20 @@ def create_operation(
     if proxy is None and provider_cfg.use_proxy:
         proxy = cfg.proxy
 
-    # 获取 Key 轮询池
+    # 获取 Key 轮询池 & 首个 api_key
     key_pool = provider_cfg.key_pool if provider_cfg.api_keys else None
+    api_key = key_pool.next() if key_pool else None
+
+    # 由 provider config 计算请求头
+    headers = provider_cfg.get_headers(api_key) if api_key else None
 
     # 构造实例
-    cls = get_cls(service, provider)
+    cls = get_cls(service, operation, provider, model)
     instance = cls(
         base_url=provider_cfg.base_url,
+        api_key=api_key,
         key_pool=key_pool,
+        headers=headers,
         model=model,
         proxy=proxy,
         stream=use_stream,
@@ -72,8 +80,8 @@ def create_operation(
     )
 
     logger.debug(
-        f"创建 operation: service={service}, provider={provider}, "
-        f"model={model}, cls={cls.__name__}"
+        f"创建 operation: service={service}, operation={operation}, "
+        f"provider={provider}, model={model}, cls={cls.__name__}"
     )
 
     return instance

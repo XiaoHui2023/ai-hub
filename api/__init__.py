@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from config import Config
-from .chat import create_chat_router
-from .search import create_search_router
+from .chat import ChatRouter
+from .search import SearchRouter
+from .context import ContextAddRouter, ContextSearchRouter
 import uvicorn
 import threading
 
@@ -10,8 +11,10 @@ class App:
     def __init__(self, config: Config):
         self._config = config
         self._app = FastAPI()
-        self._app.include_router(create_chat_router(config))
-        self._app.include_router(create_search_router(config))
+        self._app.include_router(ChatRouter(config).router)
+        self._app.include_router(SearchRouter(config).router)
+        self._app.include_router(ContextAddRouter(config).router)
+        self._app.include_router(ContextSearchRouter(config).router)
         self._server: uvicorn.Server | None = None
         self._thread: threading.Thread | None = None
 
@@ -23,6 +26,7 @@ class App:
                 host=self._config.ip,
                 port=self._config.port,
                 log_config=None,
+                ws="none",
             )
         )
         self._thread = threading.Thread(target=self._server.run, daemon=True)

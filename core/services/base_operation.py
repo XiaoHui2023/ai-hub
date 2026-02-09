@@ -19,6 +19,7 @@ class BaseOperation(ABC):
             params:Optional[dict]=None,
             api_key:Optional[str]=None,
             key_pool:Optional[KeyPool]=None,
+            headers:Optional[dict]=None,
             proxy:Optional[str]=None,
             max_retries:Optional[int]=1,
             stream:bool=False,
@@ -30,6 +31,7 @@ class BaseOperation(ABC):
         params: 参数
         api_key: 密钥
         key_pool: Key 轮询池（优先于 api_key）
+        headers: 请求头（由 provider config 计算）
         proxy: 代理
         max_retries: 最大重试次数
         stream: 是否启用流式传输
@@ -42,19 +44,17 @@ class BaseOperation(ABC):
         self.params = params
         self._key_pool = key_pool
         self.api_key = api_key
+        self.headers = headers
         self.proxy = proxy
         self.max_retries = max_retries
         self.stream = stream
         self.model = model
 
-        # 如果有 key_pool，立即从池中获取第一个 key
-        if self._key_pool:
-            self.api_key = self._key_pool.next()
-
-    @abstractmethod
     async def run(self, *args, **kwargs) -> any:
         """运行"""
-        pass
+        body = self.get_body(*args,**kwargs)
+        response = await self._request(self.full_url, body)
+        return self.parse_response(response)
 
     def _switch_api_key(self) -> bool:
         """切换到下一个 API key，返回是否成功切换"""
@@ -91,6 +91,14 @@ class BaseOperation(ABC):
                     break
 
         raise last_error
+    
+    def get_body(self, *args, **kwargs) -> dict:
+        """请求体"""
+        raise NotImplementedError("get_body method not implemented")
+
+    def parse_response(self,response:dict) -> dict:
+        """解析响应"""
+        raise NotImplementedError("parse_response method not implemented")
 
     @property
     def full_url(self) -> str:
@@ -124,11 +132,13 @@ class BaseOperation(ABC):
         response = await asyncio.to_thread(requests.post,
             url=url,
             json=data,
-            headers={
-                'Authorization': f'Bearer {self.api_key}',
-                'Content-Type': 'application/json'
-            }
+            headers=self.headers,
         )
+        import pprint
+        print("url: ", url)
+        pprint.pprint(self.headers)
+        pprint.pprint(data)
+        pprint.pprint(response.json())
         
         # 检查响应状态
         if response.status_code == 200:

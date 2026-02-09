@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
     provider = args.provider
     model = args.model
-    url = f"http://{args.host}:{args.port}/chat"
+    url = f"http://{args.host}:{args.port}/chat/completion"
 
     test_normal(url, provider, model)
     print()

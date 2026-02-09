@@ -2,6 +2,7 @@ from .base_operation import BaseOperation
 from .registry import register, get
 from . import chat
 from . import search
+from . import context
 
 __all__ = [
     "BaseOperation",
@@ -9,4 +10,5 @@ __all__ = [
     "get",
     "chat",
     "search",
+    "context",
 ]

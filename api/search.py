@@ -1,40 +1,24 @@
-from fastapi import APIRouter, HTTPException, Request
-from config import Config
-from factory import create_operation
-from .base_api import BaseAPI
+from fastapi import Request
+from .base_api import BasePayload, BaseRouter
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class Search(BaseAPI):
+class SearchPayload(BasePayload):
     query: str
 
-def create_search_router(config: Config) -> APIRouter:
-    router = APIRouter()
 
-    @router.post("/search")
-    async def search(request: Request, payload: Search):
-        client_ip = request.client.host
-        logger.info(f"search from {client_ip}: {payload.model_dump_json(exclude_none=True)}")
+class SearchRouter(BaseRouter):
+    service = "search"
+    operation = "query"
 
-        try:
-            op = create_operation(
-                cfg=config,
-                service="search",
-                provider=payload.provider,
-                model=payload.model,
-            )
+    def _setup_routes(self):
+        @self.router.post(self.path)
+        async def query(request: Request, payload: SearchPayload):
+            async def run(op, client_ip):
+                result = await op.run(query=payload.query)
+                logger.info(f"search response to {client_ip}: {str(result)[:200]}")
+                return {"content": result}
 
-            result = await op.run(query=payload.query)
-
-            logger.info(f"search response to {client_ip}: {str(result)[:200]}")
-            return {"content": result}
-
-        except (KeyError, ValueError) as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logger.exception(f"search error from {client_ip}: {e}")
-            raise HTTPException(status_code=500, detail=f"调用失败: {e}")
-
-    return router
+            return await self._handle(request, payload, run)

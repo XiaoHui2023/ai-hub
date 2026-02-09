@@ -3,7 +3,7 @@ from core.services import register
 from models import Message
 from typing import List
 
-@register("chat", "grok")
+@register("chat", "completion", "grok")
 class Grok(BaseProvider):
     def _normalize_messages(self, messages: List[Message]) -> List[Message]:
         """
