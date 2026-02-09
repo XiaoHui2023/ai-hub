@@ -6,20 +6,20 @@ providers:
   grok:
     base_url: "https://api.x.ai/v1"
     use_proxy: true
-  openai:
-    base_url: "https://api.openai.com/v1"
-    use_proxy: true
+  #openai:
+  #  base_url: "https://api.openai.com/v1"
+  #  use_proxy: true
   bocha:
     base_url: "https://api.bochaai.com/v1"
-  liblib:
-    base_url: "https://openapi.liblibai.cloud"
+  #liblib:
+  #  base_url: "https://openapi.liblibai.cloud"
     #endpoints:
     #  - name: text_to_image
     #    path: "/api/generate/webui/text2img/ultra"
     #  - name: status
     #    path: "/api/generate/webui/status"
-  qanything:
-    base_url: "https://openapi.youdao.com/q_anything/api"
+  #qanything:
+  #  base_url: "https://openapi.youdao.com/q_anything/api"
   siliconflow:
     base_url: "https://api.siliconflow.cn/v1"
   mem0:
@@ -41,34 +41,34 @@ services:
         - "grok-3-mini-fast-latest"
         - "grok-4-latest"
       stream: true
-    openai:
-      models:
-        - "gpt-5"
-      stream: true
+    #openai:
+    #  models:
+    #    - "gpt-5"
+    #  stream: true
     siliconflow:
       models:
         - "deepseek-ai/DeepSeek-R1"
         - "deepseek-ai/DeepSeek-V3"
       stream: true
-  text_to_image:
-    grok:
-      models:
-        - "grok-2-image"
+  #text_to_image:
+    #grok:
+    #  models:
+    #    - "grok-2-image"
   context:
-    qanything:
-      models:
-        - "QAnything 4o mini"
+    #qanything:
+    #  models:
+    #    - "QAnything 4o mini"
     mem0:
       models:
         - ""
-  vision:
-    aliyun:
-      models:
-        - "qwen-vl-plus-latest"
-    siliconflow:
-      models:
-        - "deepseek-ai/deepseek-vl2"
-        - "Qwen/Qwen2-VL-72B-Instruct"
+  #vision:
+  #  aliyun:
+  #    models:
+  #      - "qwen-vl-plus-latest"
+  #  siliconflow:
+  #    models:
+  #      - "deepseek-ai/deepseek-vl2"
+  #      - "Qwen/Qwen2-VL-72B-Instruct"
   search:
     bocha:
       models:
