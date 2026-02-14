@@ -1,19 +1,11 @@
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, ConfigDict, Field
 from fastapi import APIRouter, HTTPException, Request
 from config import Config
+from protocol import BaseRequest
 from factory import create_operation
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-class BasePayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    provider: str = Field(..., description="提供商")
-    model: str = Field("", description="模型")
-    stream: bool = Field(default=False, description="是否流式")
 
 
 class BaseRouter(ABC):
@@ -32,7 +24,7 @@ class BaseRouter(ABC):
         """子类注册具体路由"""
         pass
 
-    def _create_op(self, payload: BasePayload, **kwargs):
+    def _create_op(self, payload: BaseRequest, **kwargs):
         """根据 payload 创建 operation 实例"""
         return create_operation(
             cfg=self.config,
@@ -44,7 +36,7 @@ class BaseRouter(ABC):
             **kwargs,
         )
 
-    async def _handle(self, request: Request, payload: BasePayload, callback):
+    async def _handle(self, request: Request, payload: BaseRequest, callback):
         """
         通用请求处理：日志 + 创建 op + 错误处理
 

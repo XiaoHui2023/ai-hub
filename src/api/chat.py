@@ -1,20 +1,11 @@
-from typing import List, Optional
 from fastapi import Request
 from fastapi.responses import StreamingResponse
-from .base_api import BasePayload, BaseRouter
-from models.message import Message
+from .base_api import BaseRouter
+from protocol.chat import completion
 import logging
 import json
 
 logger = logging.getLogger(__name__)
-
-
-class ChatPayload(BasePayload):
-    messages: List[Message]
-    temperature: Optional[float] = None
-    frequency_penalty: Optional[float] = None
-    presence_penalty: Optional[float] = None
-    top_p: Optional[float] = None
 
 
 class ChatRouter(BaseRouter):
@@ -23,7 +14,7 @@ class ChatRouter(BaseRouter):
 
     def _setup_routes(self):
         @self.router.post(self.path)
-        async def chat(request: Request, payload: ChatPayload):
+        async def chat(request: Request, payload: completion.Request):
             async def run(op, client_ip):
                 run_kwargs = dict(
                     messages=payload.messages,

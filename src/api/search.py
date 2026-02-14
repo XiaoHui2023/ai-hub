@@ -1,12 +1,9 @@
 from fastapi import Request
-from .base_api import BasePayload, BaseRouter
+from .base_api import BaseRouter
+from protocol.search import query
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-class SearchPayload(BasePayload):
-    query: str
 
 
 class SearchRouter(BaseRouter):
@@ -15,7 +12,7 @@ class SearchRouter(BaseRouter):
 
     def _setup_routes(self):
         @self.router.post(self.path)
-        async def query(request: Request, payload: SearchPayload):
+        async def do_query(request: Request, payload: query.Request):
             async def run(op, client_ip):
                 result = await op.run(query=payload.query)
                 logger.info(f"search response to {client_ip}: {str(result)[:200]}")

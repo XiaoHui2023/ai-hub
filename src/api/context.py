@@ -1,22 +1,9 @@
-from typing import List, Optional
 from fastapi import Request
-from .base_api import BasePayload, BaseRouter
-from models.message import Message
+from .base_api import BaseRouter
+from protocol.context import add, search
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-class ContextAddPayload(BasePayload):
-    content: str
-    user_id: str
-    tag: str
-
-
-class ContextSearchPayload(BasePayload):
-    query: str
-    user_id: str
-    tag: str
 
 
 class ContextAddRouter(BaseRouter):
@@ -25,7 +12,7 @@ class ContextAddRouter(BaseRouter):
 
     def _setup_routes(self):
         @self.router.post(self.path)
-        async def add(request: Request, payload: ContextAddPayload):
+        async def do_add(request: Request, payload: add.Request):
             async def run(op, client_ip):
                 result = await op.run(
                     content=payload.content,
@@ -44,7 +31,7 @@ class ContextSearchRouter(BaseRouter):
 
     def _setup_routes(self):
         @self.router.post(self.path)
-        async def search(request: Request, payload: ContextSearchPayload):
+        async def do_search(request: Request, payload: search.Request):
             async def run(op, client_ip):
                 result = await op.run(
                     query=payload.query,
