@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.responses import StreamingResponse
 from .base_api import BaseRouter
-from protocol.chat import completion
+from ai_hub_protocol.chat import completion
 import logging
 import json
 

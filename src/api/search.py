@@ -1,6 +1,6 @@
 from fastapi import Request
 from .base_api import BaseRouter
-from protocol.search import query
+from ai_hub_protocol.search import query
 import logging
 
 logger = logging.getLogger(__name__)

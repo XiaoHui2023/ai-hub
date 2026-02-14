@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from fastapi import APIRouter, HTTPException, Request
 from config import Config
-from protocol import BaseRequest
+from ai_hub_protocol import BaseRequest
 from factory import create_operation
 import logging
 
