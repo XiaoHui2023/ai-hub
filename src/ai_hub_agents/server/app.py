@@ -1,69 +1,184 @@
-"""通用 SSE 流式执行。
+"""通用 Agent HTTP 服务。
 
-提供 run_agent_sse() 函数，将任意 BaseAgent 的 invoke() 过程
-包装为 SSE StreamingResponse。各 Agent 的业务端点直接调用即可。
+两种使用方式：
+
+1. 一键启动::
+
+       serve(XlsxAgent, llm, port=8000)
+
+2. 自定义集成::
+
+       app = create_app([XlsxAgent], llm)
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+import tempfile
+from pathlib import Path
 from typing import Any
 
-from starlette.responses import StreamingResponse
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse, StreamingResponse
+from starlette.routing import Route
 
 from ai_hub_agents.core import BaseAgent
+from ai_hub_agents.core.fields import get_file_fields, get_output_extensions
 
 from .sse import SSERenderer
 
 
-async def run_agent_sse(
+# ── 公共 API ─────────────────────────────────────
+
+
+def serve(
+    agents: list[type[BaseAgent]] | type[BaseAgent],
+    llm: Any,
+    *,
+    host: str = "0.0.0.0",
+    port: int = 8000,
+) -> None:
+    """一键启动 Agent HTTP 服务。
+
+    自动为每个 Agent 生成 POST /<name> 路由（SSE 流式响应）。
+    """
+    import uvicorn
+
+    app = create_app(agents, llm)
+    uvicorn.run(app, host=host, port=port)
+
+
+def create_app(
+    agents: list[type[BaseAgent]] | type[BaseAgent],
+    llm: Any,
+) -> Starlette:
+    """创建 Starlette 应用，可挂载到自定义 ASGI 服务器。"""
+    if not isinstance(agents, list):
+        agents = [agents]
+
+    routes: list[Route] = []
+    for cls in agents:
+        routes.append(_build_route(cls, llm))
+
+    return Starlette(routes=routes)
+
+
+# ── 内部实现 ─────────────────────────────────────
+
+
+async def _stream_agent(
     agent: BaseAgent,
     message: str,
-    state_fields: dict[str, Any] | None = None,
-) -> StreamingResponse:
-    """将 Agent 执行过程包装为 SSE 流式响应。
+    fields: dict[str, Any],
+    renderer: SSERenderer,
+    loop: asyncio.AbstractEventLoop,
+):
+    """核心 SSE 生成器：执行 Agent 并 yield SSE data 帧。"""
 
-    Args:
-        agent: 任意 BaseAgent 实例
-        message: 用户消息
-        state_fields: Agent 特有的状态字段（如 input_file, output_file），
-                      原样透传给 agent.invoke()
-    """
-    renderer = SSERenderer()
-    loop = asyncio.get_running_loop()
-    renderer.set_loop(loop)
-
-    fields = state_fields or {}
-
-    def _run_sync() -> None:
+    def _run() -> None:
         agent.invoke(message, callbacks=[renderer], **fields)
 
-    async def _event_stream():
-        future = loop.run_in_executor(None, _run_sync)
-        try:
-            while True:
-                try:
-                    data = await asyncio.wait_for(
-                        renderer.queue.get(), timeout=0.5
-                    )
-                    yield f"data: {data}\n\n"
-                except asyncio.TimeoutError:
-                    if future.done():
-                        break
-        finally:
-            while not renderer.queue.empty():
-                data = renderer.queue.get_nowait()
-                yield f"data: {data}\n\n"
-
-            exc = future.exception() if future.done() else None
-            if exc:
-                err = json.dumps(
-                    {"type": "error", "message": str(exc)},
-                    ensure_ascii=False,
+    future = loop.run_in_executor(None, _run)
+    try:
+        while True:
+            try:
+                data = await asyncio.wait_for(
+                    renderer.queue.get(), timeout=0.5
                 )
-                yield f"data: {err}\n\n"
+                yield f"data: {data}\n\n"
+            except asyncio.TimeoutError:
+                if future.done():
+                    break
+    finally:
+        while not renderer.queue.empty():
+            data = renderer.queue.get_nowait()
+            yield f"data: {data}\n\n"
 
-    return StreamingResponse(
-        _event_stream(), media_type="text/event-stream"
-    )
+        if future.done():
+            exc = future.exception()
+            if exc:
+                yield _sse_frame({"type": "error", "message": str(exc)})
+
+
+def _build_route(agent_cls: type[BaseAgent], llm: Any) -> Route:
+    """为一个 Agent 自动生成路由。"""
+    schema = getattr(agent_cls, "state_schema", None)
+    input_fields, output_fields = get_file_fields(schema)
+    ext_map = get_output_extensions(schema, output_fields)
+    has_files = bool(input_fields or output_fields)
+
+    holder: dict[str, BaseAgent] = {}
+
+    def _get_agent() -> BaseAgent:
+        if "i" not in holder:
+            holder["i"] = agent_cls.create(llm)
+        return holder["i"]
+
+    async def endpoint(request: Request) -> StreamingResponse:
+        agent = _get_agent()
+        state_fields: dict[str, Any] = {}
+
+        if has_files:
+            form = await request.form()
+            message = str(form.get("message", ""))
+            if not message:
+                return JSONResponse(
+                    {"error": "缺少 message 字段"}, status_code=400
+                )
+        else:
+            body = await request.json()
+            message = body.get("message", "")
+            if not message:
+                return JSONResponse(
+                    {"error": "缺少 message 字段"}, status_code=400
+                )
+
+        renderer = SSERenderer()
+        loop = asyncio.get_running_loop()
+        renderer.set_loop(loop)
+
+        async def _stream():
+            with tempfile.TemporaryDirectory(prefix="ai_hub_") as tmpdir:
+                tmp = Path(tmpdir)
+
+                if has_files:
+                    for field in input_fields:
+                        upload = form.get(field)
+                        if upload is not None:
+                            fp = tmp / upload.filename
+                            fp.write_bytes(await upload.read())
+                            state_fields[field] = str(fp)
+
+                    for field in output_fields:
+                        ext = ext_map.get(field, "")
+                        state_fields[field] = str(tmp / f"{field}{ext}")
+
+                async for chunk in _stream_agent(
+                    agent, message, state_fields, renderer, loop
+                ):
+                    yield chunk
+
+                if output_fields:
+                    for field in output_fields:
+                        p = Path(state_fields.get(field, ""))
+                        if p.exists():
+                            content = base64.b64encode(
+                                p.read_bytes()
+                            ).decode()
+                            yield _sse_frame({
+                                "type": "output_file",
+                                "field": field,
+                                "filename": p.name,
+                                "content_base64": content,
+                            })
+
+        return StreamingResponse(_stream(), media_type="text/event-stream")
+
+    return Route(f"/{agent_cls.name}", endpoint, methods=["POST"])
+
+
+def _sse_frame(data: dict[str, Any]) -> str:
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"

@@ -16,7 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 xlsx = ["openpyxl>=3.0", "pandas>=2.0", "defusedxml>=0.7", "lxml>=4.0"]
-server = ["starlette>=0.27"]
+server = ["starlette>=0.27", "uvicorn>=0.20", "python-multipart>=0.0.9"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ai_hub_agents"]
