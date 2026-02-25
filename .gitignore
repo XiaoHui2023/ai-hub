@@ -5,3 +5,6 @@ build/
 *.whl
 *.tar.gz
 .cursor
+.env
+.langgraph_api/
+output/

@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "xlsx": "./graph.py:xlsx_graph"
+  }
+}

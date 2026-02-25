@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import inspect
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Callable, Generator
 
 import frontmatter
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
 from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.graph.state import CompiledStateGraph
+
+from .callbacks import StreamCallback
+from .message_processing import clean_response
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
@@ -86,15 +93,64 @@ class BaseAgent(ABC):
 
     # ── 直接执行 ──────────────────────────────────────
 
-    def invoke(self, message: str) -> str:
-        result = self._graph.invoke({"messages": [("human", message)]})
-        return result["messages"][-1].content
+    def invoke(
+        self,
+        message: str,
+        *,
+        callbacks: list[StreamCallback] | None = None,
+        **state_fields: Any,
+    ) -> str:
+        """执行 Agent，基于 stream 驱动，支持回调。
+
+        Args:
+            message: 用户消息
+            callbacks: 可选的 StreamCallback 列表，用于监听生命周期事件
+            **state_fields: 额外的 state 字段（如 input_file, output_file）
+        """
+        logger.debug("Agent '%s' invoke, message: %.100s", self.name, message)
+        input_state: dict[str, Any] = {"messages": [("human", message)]}
+        input_state.update(state_fields)
+        cbs = callbacks or []
+
+        for cb in cbs:
+            cb.on_stream_start()
+
+        last_content = ""
+        for _ns, mode, event in self._graph.stream(
+            input_state,
+            stream_mode=["updates", "messages"],
+            subgraphs=True,
+        ):
+            for cb in cbs:
+                cb.on_event(mode, event)
+
+            if mode == "updates":
+                for update in event.values():
+                    if not update:
+                        continue
+                    for msg in update.get("messages", []):
+                        if isinstance(msg, AIMessage) and msg.content:
+                            last_content = msg.content
+
+        if not last_content:
+            raise RuntimeError(f"Agent '{self.name}' 返回了空的 messages")
+
+        result = clean_response(last_content)
+
+        for cb in cbs:
+            cb.on_stream_end(result)
+
+        return result
 
     def stream(
-        self, message: str
+        self, message: str, **state_fields: Any
     ) -> Generator[tuple[str, Any], None, None]:
-        for mode, event in self._graph.stream(
-            {"messages": [("human", message)]},
+        logger.debug("Agent '%s' stream, message: %.100s", self.name, message)
+        input_state: dict[str, Any] = {"messages": [("human", message)]}
+        input_state.update(state_fields)
+        for _ns, mode, event in self._graph.stream(
+            input_state,
             stream_mode=["updates", "messages"],
+            subgraphs=True,
         ):
             yield mode, event
