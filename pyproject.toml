@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-hub-agents"
+version = "0.1.4"
+description = "模块化 AI Agent 框架，基于 LangChain / LangGraph"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain>=1.0",
+    "langchain-core>=0.3",
+    "langgraph>=0.2",
+    "python-frontmatter>=1.0",
+]
+
+[project.optional-dependencies]
+xlsx = ["openpyxl>=3.0", "pandas>=2.0", "defusedxml>=0.7", "lxml>=4.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_hub_agents"]
