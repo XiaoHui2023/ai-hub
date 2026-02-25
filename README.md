@@ -10,90 +10,42 @@
 pip install ai-hub-agents
 ```
 
-## 项目结构
+按需安装可选依赖：
 
+```bash
+pip install ai-hub-agents[xlsx]      # Excel 处理
+pip install ai-hub-agents[server]    # SSE 服务端
 ```
-ai_hub/
-├── pyproject.toml
-├── README.md
-└── src/
-    └── ai_hub_agents/
-        ├── __init__.py
-        ├── core/                   # 公共基础
-        │   ├── __init__.py
-        │   └── base_agent.py       # BaseAgent 抽象基类
-        ├── excel/                  # (示例) Excel Agent
-        │   ├── __init__.py
-        │   ├── agent.py
-        │   ├── prompt.md
-        │   └── tools/
-        └── search/                 # (示例) 搜索 Agent
-            └── ...
+
+## 环境配置
+
+复制 `.env.example` 为 `.env` 并填入你的 API 配置：
+
+```bash
+cp .env.example .env
 ```
 
 ## 快速开始
 
-### 1. 创建子 Agent
+### Examples
 
-继承 `BaseAgent`，实现 `get_tools()` 和 `create()`：
+示例位于 `examples/` 目录，每个子目录对应一个 Agent，均可通过 `python -m` 直接运行：
 
-```python
-from ai_hub.core import BaseAgent
-from langgraph.prebuilt import create_react_agent
+```bash
+python -m examples.<agent_name>
 
-class ExcelAgent(BaseAgent):
-    name = "excel"
-    description = "Excel 文件操作专家"
-
-    @classmethod
-    def get_tools(cls, **kwargs):
-        return [read_sheet, write_sheet]
-
-    @classmethod
-    def create(cls, llm, **kwargs):
-        tools = cls.get_tools()
-        prompt = cls.get_prompt()       # 自动读取同目录 prompt.md
-        graph = create_react_agent(llm, tools, prompt=prompt)
-        return cls(graph)
+# 查看可用参数
+python -m examples.<agent_name> -h
 ```
 
-### 2. 作为工具调用
+### Tests
 
-将子 Agent 包装为 Tool，交给父 Agent 使用：
+测试位于 `tests/` 目录，使用 pytest 运行。集成测试需要真实 LLM 调用，请确保 `.env` 已配置。
 
-```python
-excel_tool = ExcelAgent.as_tool(llm)
-search_tool = SearchAgent.as_tool(llm)
+```bash
+# 运行所有测试
+pytest tests/
 
-supervisor = create_react_agent(llm, [excel_tool, search_tool])
-supervisor.invoke({"messages": [("human", "汇总 data.xlsx 并搜索相关资料")]})
-```
-
-### 3. 作为节点组成工作流
-
-将子 Agent 包装为节点，用 LangGraph 编排流程：
-
-```python
-from langgraph.graph import StateGraph, MessagesState
-
-builder = StateGraph(MessagesState)
-builder.add_node("search", SearchAgent.as_node(llm))
-builder.add_node("excel", ExcelAgent.as_node(llm))
-builder.add_edge("search", "excel")
-builder.set_entry_point("search")
-builder.set_finish_point("excel")
-
-workflow = builder.compile()
-workflow.invoke({"messages": [("human", "搜索数据并写入表格")]})
-```
-
-### 4. 直接执行
-
-```python
-agent = ExcelAgent.create(llm)
-result = agent.invoke("读取 data.xlsx 的第一个 sheet")
-
-# 流式输出
-for mode, event in agent.stream("汇总所有数据"):
-    print(mode, event)
+# 运行指定 Agent 的测试
+pytest tests/<agent_name>/
 ```
