@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from fastapi import APIRouter, HTTPException, Request
 from config import Config
-from ai_hub_protocol import BaseRequest
+import ai_hub_protocol as protocol
 from factory import create_operation
 import logging
 
@@ -24,7 +24,7 @@ class BaseRouter(ABC):
         """子类注册具体路由"""
         pass
 
-    def _create_op(self, payload: BaseRequest, **kwargs):
+    def _create_op(self, payload: protocol.BaseRequest, **kwargs):
         """根据 payload 创建 operation 实例"""
         return create_operation(
             cfg=self.config,
@@ -36,7 +36,7 @@ class BaseRouter(ABC):
             **kwargs,
         )
 
-    async def _handle(self, request: Request, payload: BaseRequest, callback):
+    async def _handle(self, request: Request, payload: protocol.BaseRequest, callback):
         """
         通用请求处理：日志 + 创建 op + 错误处理
 

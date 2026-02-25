@@ -9,3 +9,4 @@ pydantic==2.12.5
 Requests==2.32.5
 uvicorn==0.40.0
 mem0ai==1.0.3
+ai-hub-protocol==0.1.0

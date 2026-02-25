@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.responses import StreamingResponse
-from .base_api import BaseRouter
-from ai_hub_protocol.chat import completion
+from .base_router import BaseRouter
+import ai_hub_protocol as protocol
 import logging
 import json
 
@@ -14,7 +14,7 @@ class ChatRouter(BaseRouter):
 
     def _setup_routes(self):
         @self.router.post(self.path)
-        async def chat(request: Request, payload: completion.Request):
+        async def chat(request: Request, payload: protocol.chat.completion.Request):
             async def run(op, client_ip):
                 run_kwargs = dict(
                     messages=payload.messages,
@@ -35,7 +35,7 @@ class ChatRouter(BaseRouter):
                     async for chunk in op.run(**run_kwargs):
                         result += chunk
                     logger.info(f"chat response to {client_ip}: {result[:200]}")
-                    return {"content": result}
+                    return protocol.chat.completion.Response(content=result).model_dump()
 
             return await self._handle(request, payload, run)
 

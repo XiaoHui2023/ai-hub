@@ -1,6 +1,6 @@
 from fastapi import Request
-from .base_api import BaseRouter
-from ai_hub_protocol.context import add, search
+from .base_router import BaseRouter
+import ai_hub_protocol as protocol
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ class ContextAddRouter(BaseRouter):
 
     def _setup_routes(self):
         @self.router.post(self.path)
-        async def do_add(request: Request, payload: add.Request):
+        async def do_add(request: Request, payload: protocol.context.add.Request):
             async def run(op, client_ip):
                 result = await op.run(
                     content=payload.content,
@@ -20,7 +20,7 @@ class ContextAddRouter(BaseRouter):
                     tag=payload.tag,
                 )
                 logger.info(f"context/add response to {client_ip}: {str(result)[:200]}")
-                return {"content": result}
+                return protocol.context.add.Response(content=result).model_dump()
 
             return await self._handle(request, payload, run)
 
@@ -31,7 +31,7 @@ class ContextSearchRouter(BaseRouter):
 
     def _setup_routes(self):
         @self.router.post(self.path)
-        async def do_search(request: Request, payload: search.Request):
+        async def do_search(request: Request, payload: protocol.context.search.Request):
             async def run(op, client_ip):
                 result = await op.run(
                     query=payload.query,
@@ -39,6 +39,6 @@ class ContextSearchRouter(BaseRouter):
                     tag=payload.tag,
                 )
                 logger.info(f"context/search response to {client_ip}: {str(result)[:200]}")
-                return {"content": result}
+                return protocol.context.search.Response(content=result).model_dump()
 
             return await self._handle(request, payload, run)

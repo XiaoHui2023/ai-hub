@@ -2,6 +2,8 @@ import json
 import argparse
 from urllib import request, error
 
+from ai_hub_protocol.search.query import Request, Response
+
 
 def build_request(url: str, payload: dict) -> request.Request:
     return request.Request(
@@ -18,9 +20,10 @@ def send(url: str, payload: dict) -> None:
     try:
         with request.urlopen(req, timeout=60) as resp:
             body = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            result = Response.model_validate(body)
             print(f"status: {resp.status}")
             print(f"response:")
-            print(json.dumps(body, indent=2, ensure_ascii=False))
+            print(json.dumps(result.model_dump(), indent=2, ensure_ascii=False))
     except error.HTTPError as e:
         print(f"HTTPError: {e.code} {e.reason}")
         print(e.read().decode("utf-8", errors="ignore"))
@@ -33,11 +36,8 @@ def test_search(url: str, provider: str, model: str, query: str) -> None:
     print(f"测试: 搜索  [{provider} / {model}]")
     print(f"查询: {query}")
     print("=" * 40)
-    send(url, {
-        "provider": provider,
-        "model": model,
-        "query": query,
-    })
+    req = Request(provider=provider, model=model, query=query)
+    send(url, req.model_dump())
 
 
 if __name__ == "__main__":

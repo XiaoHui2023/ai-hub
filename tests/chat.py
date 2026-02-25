@@ -2,9 +2,11 @@ import json
 import argparse
 from urllib import request, error
 
+import ai_hub_protocol as protocol
+
 MESSAGES = [
-    {"role": "system", "content": "你是一个乐于助人的中文助手。"},
-    {"role": "user", "content": "你好，帮我写一段早安问候。"},
+    protocol.chat.completion.Message(role="system", content="你是一个乐于助人的中文助手。"),
+    protocol.chat.completion.Message(role="user", content="你好，帮我写一段早安问候。"),
 ]
 
 
@@ -22,9 +24,10 @@ def send(url: str, payload: dict) -> None:
     req = build_request(url, payload)
     try:
         with request.urlopen(req, timeout=60) as resp:
-            body = resp.read().decode("utf-8", errors="ignore")
+            body = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            result = protocol.chat.completion.Response.model_validate(body)
             print(f"status: {resp.status}")
-            print(f"response:\n{body}")
+            print(f"response:\n{result.content}")
     except error.HTTPError as e:
         print(f"HTTPError: {e.code} {e.reason}")
         print(e.read().decode("utf-8", errors="ignore"))
@@ -48,7 +51,8 @@ def send_stream(url: str, payload: dict) -> None:
                 if line.startswith("data: "):
                     data = json.loads(line[6:])
                     if "content" in data:
-                        print(data["content"], end="", flush=True)
+                        chunk = protocol.chat.completion.Response.model_validate(data)
+                        print(chunk.content, end="", flush=True)
                     elif "error" in data:
                         print(f"\nerror: {data['error']}")
             print()
@@ -59,29 +63,24 @@ def send_stream(url: str, payload: dict) -> None:
         print(f"URLError: {e.reason}")
 
 
-
 def test_normal(url: str, provider: str, model: str) -> None:
     print("=" * 40)
     print(f"测试: 非流式传输  [{provider} / {model}]")
     print("=" * 40)
-    send(url, {
-        "provider": provider,
-        "model": model,
-        "stream": False,
-        "messages": MESSAGES,
-    })
+    req = protocol.chat.completion.Request(
+        provider=provider, model=model, stream=False, messages=MESSAGES,
+    )
+    send(url, req.model_dump())
 
 
 def test_stream(url: str, provider: str, model: str) -> None:
     print("=" * 40)
     print(f"测试: 流式传输  [{provider} / {model}]")
     print("=" * 40)
-    send_stream(url, {
-        "provider": provider,
-        "model": model,
-        "stream": True,
-        "messages": MESSAGES,
-    })
+    req = protocol.chat.completion.Request(
+        provider=provider, model=model, stream=True, messages=MESSAGES,
+    )
+    send_stream(url, req.model_dump())
 
 
 if __name__ == "__main__":

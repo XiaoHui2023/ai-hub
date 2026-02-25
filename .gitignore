@@ -4,3 +4,4 @@ dist/
 build/
 *.whl
 *.tar.gz
+.cursor
