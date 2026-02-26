@@ -20,10 +20,6 @@ def _fetch_one(url: str, timeout: int, max_chars: int) -> dict[str, str] | None:
             impersonate="chrome120",
             timeout=timeout,
         )
-
-        resp = requests.get(url, timeout=timeout, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; AIHubBot/1.0)"
-        })
         resp.raise_for_status()
 
         markdown = extract(resp.text, output_format="markdown", include_links=True)
