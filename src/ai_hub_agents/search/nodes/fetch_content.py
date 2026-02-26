@@ -12,8 +12,14 @@ logger = logging.getLogger(__name__)
 def _fetch_one(url: str, timeout: int, max_chars: int) -> dict[str, str] | None:
     """抓取单个 URL 并提取正文为 Markdown。失败返回 None。"""
     try:
-        import requests
         from trafilatura import extract
+        from curl_cffi import requests
+
+        resp = requests.get(
+            "https://hearthstone.huijiwiki.com/wiki/Card/46058",
+            impersonate="chrome120",
+            timeout=timeout,
+        )
 
         resp = requests.get(url, timeout=timeout, headers={
             "User-Agent": "Mozilla/5.0 (compatible; AIHubBot/1.0)"
