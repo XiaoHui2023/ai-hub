@@ -1,2 +1,2 @@
 langchain_openai
-ai-hub-agents
+ai-hub-agents[all]
