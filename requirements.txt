@@ -1,2 +1,4 @@
 langchain_openai
+ai-hub-agents[memory-postgres]
+langgraph-checkpoint-postgres>=2.0
 ai-hub-agents[all]
