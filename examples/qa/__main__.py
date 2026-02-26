@@ -2,7 +2,7 @@ import argparse
 import uuid
 
 from ai_hub_agents.qa import QaAgent
-from ai_hub_agents.test import ColorStreamRenderer, load_test_llm, setup_logging
+from ai_hub_agents.test import ColorStreamRenderer,SqliteDebugRenderer, load_test_llm, setup_logging
 
 DEFAULT_MESSAGE = "2026年有哪些值得关注的AI开源项目？"
 
@@ -17,8 +17,8 @@ def main() -> None:
     setup_logging()
 
     llm = load_test_llm()
-    renderer = ColorStreamRenderer()
-    agent = QaAgent.create(llm, provider_name=args.provider, callbacks=[renderer])
+    renderers = [ColorStreamRenderer(),SqliteDebugRenderer()]
+    agent = QaAgent.create(llm, provider_name=args.provider, callbacks=renderers)
     thread_id = str(uuid.uuid4())
 
     if args.interactive:
@@ -29,11 +29,11 @@ def main() -> None:
                 break
             if not user_input:
                 continue
-            result = agent.invoke(user_input, thread_id=thread_id, callbacks=[renderer])
+            result = agent.invoke(user_input, thread_id=thread_id, callbacks=renderers)
             print(f"\n助手: {result}")
     else:
         print(f"问题: {args.message}")
-        result = agent.invoke(args.message, thread_id=thread_id, callbacks=[renderer])
+        result = agent.invoke(args.message, thread_id=thread_id, callbacks=renderers)
         print(result)
 
 

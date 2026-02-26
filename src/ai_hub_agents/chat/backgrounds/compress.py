@@ -1,4 +1,8 @@
-"""compress 后台 worker — 压缩过长的消息历史（短期记忆）。"""
+"""compress 后台 worker — 异步压缩过长的消息历史（短期记忆）。
+
+从 ChatContextStore 加载最新数据，压缩老消息为摘要，
+通过 CAS（save_if_version）写回，防止覆盖并发写入的新数据。
+"""
 
 from __future__ import annotations
 
@@ -6,11 +10,12 @@ import logging
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from ai_hub_agents.core import FnBackgroundAgent
 from ai_hub_agents.core.event import RunContext
 from ai_hub_agents.core.llm import _model_tag
-from ai_hub_agents.core.memory import ShortTermMemory
+from ai_hub_agents.core.memory import ChatContextStore, ShortTermMemory
 
 logger = logging.getLogger(__name__)
 
@@ -23,26 +28,63 @@ _COMPRESS_PROMPT = """\
 def create_compress_worker(
     stm: ShortTermMemory,
     lite: BaseChatModel,
-    checkpointer: Any,
+    context_store: ChatContextStore,
     callbacks: list | None = None,
 ) -> FnBackgroundAgent | None:
-    if checkpointer is None:
+    if context_store is None:
         return None
 
     def do_compress(items: list[RunContext]) -> None:
+        seen: set[str | None] = set()
         for ctx in items:
-            if not stm.overflow(ctx.state):
+            if ctx.thread_id in seen:
                 continue
-            logger.info("[compress] 使用 轻量 模型: %s", _model_tag(lite))
-            patch = stm.compress(
-                ctx.state,
-                llm=lite,
-                prompt=_COMPRESS_PROMPT,
-                summary_field="chat_summary",
-            )
-            if patch:
-                logger.info("[compress] 压缩完成，thread=%s", ctx.thread_id)
+            seen.add(ctx.thread_id)
 
-    worker = FnBackgroundAgent(fn=do_compress, name="compress", debounce=0, callbacks=callbacks)
+            if not ctx.thread_id:
+                continue
+
+            stored, version = context_store.load(ctx.thread_id)
+            if not stored:
+                continue
+
+            messages = stored["messages"]
+            if len(messages) <= stm.threshold:
+                continue
+
+            to_compress = messages[: -stm.keep]
+            to_keep = messages[-stm.keep :]
+
+            text = "\n".join(
+                f"{m.type}: {m.content}"
+                for m in to_compress
+                if hasattr(m, "content")
+            )
+
+            existing_summary = stored.get("summary", "")
+            if existing_summary:
+                text = f"已有摘要：{existing_summary}\n\n新内容：\n{text}"
+
+            logger.info("[compress] 使用 轻量 模型: %s", _model_tag(lite))
+            response = lite.invoke([
+                SystemMessage(content=_COMPRESS_PROMPT),
+                HumanMessage(content=text),
+            ])
+
+            new_summary = response.content
+            summary_msg = SystemMessage(content=f"[对话摘要] {new_summary}")
+            new_messages = [summary_msg, *to_keep]
+
+            if context_store.save_if_version(
+                ctx.thread_id, new_messages, new_summary, version
+            ):
+                logger.info(
+                    "[compress] 压缩完成 thread=%s, %d → %d 条",
+                    ctx.thread_id, len(messages), len(new_messages),
+                )
+
+    worker = FnBackgroundAgent(
+        fn=do_compress, name="compress", debounce=0, callbacks=callbacks,
+    )
     worker.start()
     return worker

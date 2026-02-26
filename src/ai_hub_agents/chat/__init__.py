@@ -1,9 +1,12 @@
 """ChatAgent — 纯对话引擎，支持短期/长期记忆。
 
-主流程：intent_router → [RECALL] recall → reply → END
-                       → [DIRECT]        reply → END
+主流程：load_context → intent_router → [RECALL] recall → reply → save_context → END
+                                       → [DIRECT]        reply → save_context → END
 
-后台任务通过触发器在 run 完成后自动提交。
+记忆完全自管理：
+  - load_context / save_context 节点读写 ChatContextStore（独立于 LangGraph checkpointer）
+  - 异步压缩由 save_context 检测溢出后提交后台 worker
+  - 无论作为独立 agent 还是子图，记忆行为一致，上层无需关心
 """
 
 from __future__ import annotations
@@ -18,20 +21,27 @@ from langgraph.graph import END, START, MessagesState
 from ai_hub_agents.core import BaseAgent
 from ai_hub_agents.core.llm import resolve_lite_llm
 from ai_hub_agents.core.memory import (
+    ChatContextStore,
     LongTermMemory,
     ShortTermMemory,
-    create_checkpointer,
     create_store,
 )
 
 from .backgrounds import create_compress_worker, create_extract_worker
-from .nodes import make_intent_router, make_recall, make_reply, route_after_intent
+from .nodes import (
+    make_intent_router,
+    make_load_context,
+    make_recall,
+    make_reply,
+    make_save_context,
+    route_after_intent,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class ChatAgent(BaseAgent):
-    """纯对话聊天助手，支持短期/长期记忆。"""
+    """纯对话聊天助手，支持自管理的短期/长期记忆。"""
 
     class State(MessagesState):
         chat_recalled: str
@@ -49,56 +59,34 @@ class ChatAgent(BaseAgent):
 
     @classmethod
     def create(cls, llm: BaseChatModel, **kwargs: Any) -> ChatAgent:
-        platform_mode = kwargs.pop("platform_mode", False)
         prompt = cls.get_prompt()
         lite = resolve_lite_llm(llm)
 
-        try:
-            checkpointer = create_checkpointer()
-        except Exception:
-            logger.debug("未配置 checkpointer，跳过")
-            checkpointer = None
-
+        context_store = ChatContextStore()
         store = create_store()
         stm = ShortTermMemory("messages", threshold=20, keep=8)
         ltm = LongTermMemory("user_prefs", store=store) if store else None
 
-        cls.nodes({
-            "intent_router": make_intent_router(lite),
-            "recall": make_recall(ltm),
-            "reply": make_reply(llm, prompt),
-        })
-        cls.flow(START, "intent_router")
-        cls.route("intent_router", route_after_intent)
-        cls.flow("recall", "reply", END)
-
-        if platform_mode:
-            agent = cls.compile()
-        else:
-            agent = cls.compile(checkpointer=checkpointer, store=store)
-
-        # ── 后台 + 触发器 ──
+        # ── 后台 workers ──
         bg_callbacks = kwargs.get("callbacks")
-        compress = create_compress_worker(stm, lite, checkpointer, callbacks=bg_callbacks)
+        compress = create_compress_worker(stm, lite, context_store, callbacks=bg_callbacks)
 
-        # 为后台 extract worker 创建独立的 store 连接，
-        # 避免与主线程共享同一个 psycopg.Connection（非线程安全）
         bg_store = create_store() if store else None
         bg_ltm = LongTermMemory("user_prefs", store=bg_store) if bg_store else None
         extract = create_extract_worker(bg_ltm, lite, callbacks=bg_callbacks)
 
-        if compress:
-            agent.trigger(
-                "run_complete",
-                action=lambda e: compress.emit(e.ctx),
-                condition=lambda e: stm.overflow(e.ctx.state),
-                name="compress",
-            )
-        if extract:
-            agent.trigger(
-                "run_complete",
-                action=lambda e: extract.emit(e.ctx),
-                name="extract",
-            )
+        # ── 图构建 ──
+        cls.nodes({
+            "load_context": make_load_context(context_store),
+            "intent_router": make_intent_router(lite),
+            "recall": make_recall(ltm),
+            "reply": make_reply(llm, prompt),
+            "save_context": make_save_context(context_store, stm, compress, extract),
+        })
 
-        return agent
+        cls.flow(START, "load_context", "intent_router")
+        cls.route("intent_router", route_after_intent)
+        cls.flow("recall", "reply")
+        cls.flow("reply", "save_context", END)
+
+        return cls.compile()
