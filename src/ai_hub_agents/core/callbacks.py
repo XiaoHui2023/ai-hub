@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
 
 class StreamCallback:
@@ -70,6 +70,14 @@ class StreamCallback:
 
     def on_queue_resume(self, thread_id: str) -> None:
         """获得锁、即将开始执行时触发。"""
+
+    # ── LLM 调用钩子 ───────────────────────────────
+
+    def on_llm_start(self, messages: list[BaseMessage]) -> None:
+        """LLM 调用开始，messages 为发送给模型的完整输入。"""
+
+    def on_llm_end(self, response: AIMessage) -> None:
+        """LLM 调用完成，response 为模型的完整回复。"""
 
     # ── 细粒度钩子（子类按需覆盖） ────────────────
 

@@ -1,6 +1,7 @@
 from .background import AsyncBackgroundAgent, BackgroundAgent, FnBackgroundAgent
 from .base_agent import BaseAgent
 from .callbacks import StreamCallback
+from .langchain_bridge import LangChainBridge
 from .event import (
     Event,
     EventBus,
@@ -25,6 +26,7 @@ __all__ = [
     "EventBus",
     "FnBackgroundAgent",
     "InputFile",
+    "LangChainBridge",
     "NodeCompleteEvent",
     "OutputFile",
     "RunCompleteEvent",

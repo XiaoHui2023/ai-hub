@@ -49,6 +49,7 @@ class ChatAgent(BaseAgent):
 
     @classmethod
     def create(cls, llm: BaseChatModel, **kwargs: Any) -> ChatAgent:
+        platform_mode = kwargs.pop("platform_mode", False)
         prompt = cls.get_prompt()
         lite = resolve_lite_llm(llm)
 
@@ -71,7 +72,10 @@ class ChatAgent(BaseAgent):
         cls.route("intent_router", route_after_intent)
         cls.flow("recall", "reply", END)
 
-        agent = cls.compile(checkpointer=checkpointer, store=store)
+        if platform_mode:
+            agent = cls.compile()
+        else:
+            agent = cls.compile(checkpointer=checkpointer, store=store)
 
         # ── 后台 + 触发器 ──
         bg_callbacks = kwargs.get("callbacks")

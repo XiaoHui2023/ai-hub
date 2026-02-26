@@ -26,10 +26,11 @@ llm = ChatOpenAI(
     temperature=0,
 )
 
+
 for _, module_name, is_pkg in pkgutil.iter_modules(ai_hub_agents.__path__):
     if is_pkg and module_name != "core":
         importlib.import_module(f"ai_hub_agents.{module_name}")
 
 for _cls in BaseAgent.__subclasses__():
-    _agent = _cls.create(llm)
+    _agent = _cls.create(llm, platform_mode=True)
     globals()[f"{_cls.name}_graph"] = _agent._graph

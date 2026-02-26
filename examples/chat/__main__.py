@@ -2,9 +2,9 @@ import argparse
 import uuid
 
 from ai_hub_agents.chat import ChatAgent
-from ai_hub_agents.test import ColorStreamRenderer, load_test_llm, setup_logging
+from ai_hub_agents.test import ColorStreamRenderer, SqliteDebugRenderer, load_test_llm, setup_logging
 
-DEFAULT_MESSAGE = "你好，请介绍一下你自己"
+DEFAULT_MESSAGE = "你怎么看待AI发展对人类的影响？"
 
 
 def main() -> None:
@@ -16,8 +16,11 @@ def main() -> None:
     setup_logging()
 
     llm = load_test_llm()
-    renderer = ColorStreamRenderer()
-    agent = ChatAgent.create(llm, callbacks=[renderer])
+    renderers = [
+        ColorStreamRenderer(),
+        SqliteDebugRenderer(),
+    ]
+    agent = ChatAgent.create(llm, callbacks=renderers)
     thread_id = str(uuid.uuid4())
 
     if args.interactive:
@@ -28,11 +31,11 @@ def main() -> None:
                 break
             if not user_input:
                 continue
-            result = agent.invoke(user_input, thread_id=thread_id, callbacks=[renderer])
+            result = agent.invoke(user_input, thread_id=thread_id, callbacks=renderers)
             print(f"\n助手: {result}")
     else:
         print(f"消息: {args.message}")
-        result = agent.invoke(args.message, thread_id=thread_id, callbacks=[renderer])
+        result = agent.invoke(args.message, thread_id=thread_id, callbacks=renderers)
         print(result)
 
 

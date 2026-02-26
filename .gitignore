@@ -9,4 +9,4 @@ build/
 .langgraph_api/
 output/
 .pytest_cache/
-checkpoints.db*
+*.db*

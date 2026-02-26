@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from ai_hub_agents.chat import ChatAgent
-from ai_hub_agents.test import ColorStreamRenderer, load_test_llm, setup_logging
+from ai_hub_agents.test import ColorStreamRenderer, DebugStreamRenderer, load_test_llm, setup_logging
 
 
 def pytest_configure(config):
@@ -26,3 +26,8 @@ def agent(llm):
 @pytest.fixture()
 def renderer():
     return ColorStreamRenderer()
+
+
+@pytest.fixture()
+def debug_renderer():
+    return DebugStreamRenderer()

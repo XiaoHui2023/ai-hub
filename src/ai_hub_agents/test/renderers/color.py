@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, BaseMessage
 
 from ai_hub_agents.core.callbacks import StreamCallback
 
@@ -71,6 +71,25 @@ class ColorStreamRenderer(StreamCallback):
             f"{BOLD}{name}{RESET}: "
             f"{DIM}{content[:300]}{RESET}"
         )
+
+    def on_llm_start(self, messages: list[BaseMessage]) -> None:
+        roles = [type(m).__name__.replace("Message", "") for m in messages]
+        logger.info(
+            f"{DIM}📨 LLM Start{RESET}  "
+            f"{len(messages)} messages "
+            f"{DIM}[{', '.join(roles)}]{RESET}"
+        )
+
+    def on_llm_end(self, response: AIMessage) -> None:
+        preview = (response.content[:120] + "…") if len(response.content) > 120 else response.content
+        has_tools = bool(response.tool_calls)
+        label = f"{CYAN}📩 LLM End{RESET}"
+        if has_tools:
+            names = [tc["name"] for tc in response.tool_calls]
+            label += f"  {DIM}tool_calls={names}{RESET}"
+        else:
+            label += f"  {DIM}{preview}{RESET}"
+        logger.info(label)
 
     def on_background_submit(self, worker_name: str) -> None:
         logger.info(

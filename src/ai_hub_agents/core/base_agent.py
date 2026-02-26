@@ -14,6 +14,7 @@ from langgraph.graph import MessagesState, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from .callbacks import StreamCallback
+from .langchain_bridge import LangChainBridge
 from .event import (
     Event,
     EventBus,
@@ -268,7 +269,8 @@ class BaseAgent(ABC):
         input_state: dict[str, Any] = {"messages": [("human", message)]}
         input_state.update(state_fields)
         cbs = callbacks or []
-        config = self._build_config(thread_id)
+        config = self._build_config(thread_id) or {}
+        config.setdefault("callbacks", []).append(LangChainBridge(cbs))
 
         run_ctx = RunContext(thread_id=thread_id, config=config)
         self._bus.emit(RunStartEvent(ctx=run_ctx))
@@ -350,7 +352,7 @@ class BaseAgent(ABC):
         logger.debug("Agent '%s' stream, message: %.100s", self.name, message)
         input_state: dict[str, Any] = {"messages": [("human", message)]}
         input_state.update(state_fields)
-        config = self._build_config(thread_id)
+        config = self._build_config(thread_id) or {}
 
         run_ctx = RunContext(thread_id=thread_id, config=config)
         self._bus.emit(RunStartEvent(ctx=run_ctx))
