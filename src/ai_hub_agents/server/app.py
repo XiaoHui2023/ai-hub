@@ -41,32 +41,35 @@ def serve(
     *,
     host: str = "0.0.0.0",
     port: int = 8000,
+    **kwargs: Any,
 ) -> None:
     """一键启动 Agent HTTP 服务。
 
     自动为每个 Agent 生成 POST /<name> 路由（SSE 流式响应）。
+    额外的 ``kwargs`` 会透传给 ``agent_cls.create()``。
     """
     import uvicorn
 
-    app = create_app(agents, llm)
+    app = create_app(agents, llm, **kwargs)
     uvicorn.run(app, host=host, port=port)
 
 
 def create_app(
     agents: list[type[BaseAgent]] | type[BaseAgent],
     llm: Any,
+    **kwargs: Any,
 ) -> Starlette:
     """创建 Starlette 应用，可挂载到自定义 ASGI 服务器。
 
     当只注册一个 Agent 时，自动在 ``POST /`` 根路径额外挂载，
-    客户端可省略 Agent 名称。
+    客户端可省略 Agent 名称。额外的 ``kwargs`` 会透传给 ``agent_cls.create()``。
     """
     if not isinstance(agents, list):
         agents = [agents]
 
     routes: list[Route] = []
     for cls in agents:
-        routes.append(_build_route(cls, llm))
+        routes.append(_build_route(cls, llm, **kwargs))
 
     if len(agents) == 1:
         root_endpoint = routes[0].endpoint
@@ -114,7 +117,7 @@ async def _stream_agent(
                 yield _sse_frame({"type": "error", "message": str(exc)})
 
 
-def _build_route(agent_cls: type[BaseAgent], llm: Any) -> Route:
+def _build_route(agent_cls: type[BaseAgent], llm: Any, **kwargs: Any) -> Route:
     """为一个 Agent 自动生成路由。"""
     schema = getattr(agent_cls, "state_schema", None)
     input_fields, output_fields = get_file_fields(schema)
@@ -128,7 +131,7 @@ def _build_route(agent_cls: type[BaseAgent], llm: Any) -> Route:
 
     def _get_agent() -> BaseAgent:
         if "i" not in holder:
-            holder["i"] = agent_cls.create(llm)
+            holder["i"] = agent_cls.create(llm, **kwargs)
         return holder["i"]
 
     async def endpoint(request: Request) -> StreamingResponse:
