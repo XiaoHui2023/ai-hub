@@ -1,6 +1,9 @@
 {
   "dependencies": ["."],
   "graphs": {
+    "qa": "./graph.py:qa_graph",
+    "search": "./graph.py:search_graph",
+    "chat": "./graph.py:chat_graph",
     "xlsx": "./graph.py:xlsx_graph"
   }
 }

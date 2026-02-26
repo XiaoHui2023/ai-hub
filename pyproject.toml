@@ -17,6 +17,11 @@ dependencies = [
 [project.optional-dependencies]
 xlsx = ["openpyxl>=3.0", "pandas>=2.0", "defusedxml>=0.7", "lxml>=4.0"]
 server = ["starlette>=0.27", "uvicorn>=0.20", "python-multipart>=0.0.9"]
+memory = ["langgraph-checkpoint-sqlite>=2.0"]
+memory-postgres = ["langgraph-checkpoint-postgres>=2.0", "psycopg[binary,pool]>=3.0"]
+chat = ["langchain-openai>=0.1"]
+search = ["trafilatura>=1.6", "requests>=2.28"]
+client = ["httpx>=0.24"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ai_hub_agents"]

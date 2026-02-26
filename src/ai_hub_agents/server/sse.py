@@ -42,10 +42,21 @@ class SSERenderer(StreamCallback):
         else:
             self.queue.put_nowait(payload)
 
+    # ── 排队钩子 ─────────────────────────────────
+
+    def on_queue_wait(self, thread_id: str) -> None:
+        self._send({"type": "queue_wait", "thread_id": thread_id})
+
+    def on_queue_resume(self, thread_id: str) -> None:
+        self._send({"type": "queue_resume", "thread_id": thread_id})
+
     # ── 生命周期钩子 ─────────────────────────────
 
     def on_stream_start(self) -> None:
         self._send({"type": "stream_start"})
+
+    def on_node(self, name: str) -> None:
+        self._send({"type": "node", "name": name})
 
     def on_tool_call(self, name: str, args: dict[str, Any]) -> None:
         self._send({"type": "tool_call", "name": name, "args": args})

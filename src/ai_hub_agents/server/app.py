@@ -27,6 +27,7 @@ from starlette.routing import Route
 
 from ai_hub_agents.core import BaseAgent
 from ai_hub_agents.core.fields import get_file_fields, get_output_extensions
+from ai_hub_agents.core.thread_lock import AsyncThreadLockManager
 
 from .sse import SSERenderer
 
@@ -55,13 +56,21 @@ def create_app(
     agents: list[type[BaseAgent]] | type[BaseAgent],
     llm: Any,
 ) -> Starlette:
-    """创建 Starlette 应用，可挂载到自定义 ASGI 服务器。"""
+    """创建 Starlette 应用，可挂载到自定义 ASGI 服务器。
+
+    当只注册一个 Agent 时，自动在 ``POST /`` 根路径额外挂载，
+    客户端可省略 Agent 名称。
+    """
     if not isinstance(agents, list):
         agents = [agents]
 
     routes: list[Route] = []
     for cls in agents:
         routes.append(_build_route(cls, llm))
+
+    if len(agents) == 1:
+        root_endpoint = routes[0].endpoint
+        routes.append(Route("/", root_endpoint, methods=["POST"]))
 
     return Starlette(routes=routes)
 
@@ -75,11 +84,13 @@ async def _stream_agent(
     fields: dict[str, Any],
     renderer: SSERenderer,
     loop: asyncio.AbstractEventLoop,
+    *,
+    thread_id: str | None = None,
 ):
     """核心 SSE 生成器：执行 Agent 并 yield SSE data 帧。"""
 
     def _run() -> None:
-        agent.invoke(message, callbacks=[renderer], **fields)
+        agent.invoke(message, thread_id=thread_id, callbacks=[renderer], **fields)
 
     future = loop.run_in_executor(None, _run)
     try:
@@ -111,6 +122,9 @@ def _build_route(agent_cls: type[BaseAgent], llm: Any) -> Route:
     has_files = bool(input_fields or output_fields)
 
     holder: dict[str, BaseAgent] = {}
+    async_locks: AsyncThreadLockManager | None = (
+        AsyncThreadLockManager() if agent_cls.sequential_threads else None
+    )
 
     def _get_agent() -> BaseAgent:
         if "i" not in holder:
@@ -120,6 +134,7 @@ def _build_route(agent_cls: type[BaseAgent], llm: Any) -> Route:
     async def endpoint(request: Request) -> StreamingResponse:
         agent = _get_agent()
         state_fields: dict[str, Any] = {}
+        thread_id: str | None = None
 
         if has_files:
             form = await request.form()
@@ -131,6 +146,7 @@ def _build_route(agent_cls: type[BaseAgent], llm: Any) -> Route:
         else:
             body = await request.json()
             message = body.get("message", "")
+            thread_id = body.get("thread_id")
             if not message:
                 return JSONResponse(
                     {"error": "缺少 message 字段"}, status_code=400
@@ -141,6 +157,16 @@ def _build_route(agent_cls: type[BaseAgent], llm: Any) -> Route:
         renderer.set_loop(loop)
 
         async def _stream():
+            if async_locks and thread_id:
+                async with async_locks.acquire(thread_id):
+                    renderer._send({"type": "queue_resume"})
+                    async for chunk in _stream_core():
+                        yield chunk
+            else:
+                async for chunk in _stream_core():
+                    yield chunk
+
+        async def _stream_core():
             with tempfile.TemporaryDirectory(prefix="ai_hub_") as tmpdir:
                 tmp = Path(tmpdir)
 
@@ -157,7 +183,8 @@ def _build_route(agent_cls: type[BaseAgent], llm: Any) -> Route:
                         state_fields[field] = str(tmp / f"{field}{ext}")
 
                 async for chunk in _stream_agent(
-                    agent, message, state_fields, renderer, loop
+                    agent, message, state_fields, renderer, loop,
+                    thread_id=thread_id,
                 ):
                     yield chunk
 

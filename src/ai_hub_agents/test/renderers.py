@@ -28,15 +28,28 @@ RESET = "\033[0m"
 class ColorStreamRenderer(StreamCallback):
     """终端彩色流式渲染器，通过 logging.info 输出。"""
 
+    def on_queue_wait(self, thread_id: str) -> None:
+        logger.info(f"{YELLOW}⏳ 排队等待{RESET}  thread={DIM}{thread_id}{RESET}")
+
+    def on_queue_resume(self, thread_id: str) -> None:
+        logger.info(f"{GREEN}▶ 开始执行{RESET}  thread={DIM}{thread_id}{RESET}")
+
     def on_stream_start(self) -> None:
         logger.info(f"{DIM}{'─' * 50}{RESET}")
 
     def on_stream_end(self, result: str) -> None:
         logger.info(f"{DIM}{'─' * 50}{RESET}")
 
+    def on_node(self, name: str) -> None:
+        logger.info(f"{DIM}✅ Node 完成{RESET}  {BOLD}{name}{RESET}")
+
     def on_ai_message(self, message: AIMessage) -> None:
         text = message.content[:200]
-        logger.info(f"{CYAN}🤖 AI{RESET}  {text}")
+        model = message.response_metadata.get("model_name", "") if message.response_metadata else ""
+        label = f"{CYAN}🤖 AI{RESET}"
+        if model:
+            label += f" {DIM}({model}){RESET}"
+        logger.info(f"{label}  {text}")
 
     def on_tool_call(self, name: str, args: dict[str, Any]) -> None:
         logger.info(
@@ -57,4 +70,24 @@ class ColorStreamRenderer(StreamCallback):
             f"{RED}❌ Error{RESET}  "
             f"{BOLD}{name}{RESET}: "
             f"{DIM}{content[:300]}{RESET}"
+        )
+
+    def on_background_submit(self, worker_name: str) -> None:
+        logger.info(
+            f"{DIM}🔄 Background{RESET}  "
+            f"{BOLD}{worker_name}{RESET} 提交任务"
+        )
+
+    def on_background_done(self, worker_name: str, item_count: int) -> None:
+        logger.info(
+            f"{GREEN}✅ Background{RESET}  "
+            f"{BOLD}{worker_name}{RESET} 完成 "
+            f"{DIM}({item_count} 项){RESET}"
+        )
+
+    def on_background_error(self, worker_name: str, error: str, item_count: int) -> None:
+        logger.info(
+            f"{RED}❌ Background{RESET}  "
+            f"{BOLD}{worker_name}{RESET} 失败: "
+            f"{DIM}{error[:200]}{RESET}"
         )

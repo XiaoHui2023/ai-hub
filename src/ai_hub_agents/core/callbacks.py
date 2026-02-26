@@ -31,11 +31,14 @@ class StreamCallback:
     def on_stream_end(self, result: str) -> None:
         """stream 结束后调用。result 为最终清洗后的文本。"""
 
-    def on_event(self, mode: str, event: Any) -> None:
+    def on_event(self, mode: str, event: Any, *, ns: tuple[str, ...] = ()) -> None:
         """处理原始 stream 事件，默认分发到细粒度钩子。
 
         - messages 模式：处理 ToolMessage（每个工具完成时立即触发）
         - updates 模式：处理 AIMessage（tool_calls 和文本回复）
+
+        Args:
+            ns: 子图命名空间路径，用于给节点名加前缀（如 ``("search",)``）。
 
         高级用户可覆盖此方法直接处理原始事件。
         """
@@ -47,7 +50,9 @@ class StreamCallback:
                 else:
                     self.on_tool_result(msg.name, str(msg.content))
         elif mode == "updates":
-            for update in event.values():
+            prefix = ".".join(ns) + "." if ns else ""
+            for node_name, update in event.items():
+                self.on_node(f"{prefix}{node_name}")
                 if not update:
                     continue
                 for msg in update.get("messages", []):
@@ -58,7 +63,18 @@ class StreamCallback:
                         elif msg.content:
                             self.on_ai_message(msg)
 
+    # ── 排队钩子 ──────────────────────────────────
+
+    def on_queue_wait(self, thread_id: str) -> None:
+        """进入排队等待时触发（同一 thread_id 有请求正在执行）。"""
+
+    def on_queue_resume(self, thread_id: str) -> None:
+        """获得锁、即将开始执行时触发。"""
+
     # ── 细粒度钩子（子类按需覆盖） ────────────────
+
+    def on_node(self, name: str) -> None:
+        """节点完成时触发。"""
 
     def on_ai_message(self, message: AIMessage) -> None:
         """AI 产生了文本回复。"""
@@ -71,3 +87,14 @@ class StreamCallback:
 
     def on_tool_error(self, name: str, content: str) -> None:
         """工具执行失败。"""
+
+    # ── 后台任务钩子 ──────────────────────────────
+
+    def on_background_submit(self, worker_name: str) -> None:
+        """后台 worker 收到任务提交。"""
+
+    def on_background_done(self, worker_name: str, item_count: int) -> None:
+        """后台 worker 完成一批任务处理。"""
+
+    def on_background_error(self, worker_name: str, error: str, item_count: int) -> None:
+        """后台 worker 处理失败。"""
