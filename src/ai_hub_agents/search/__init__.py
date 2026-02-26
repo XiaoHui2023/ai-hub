@@ -1,6 +1,6 @@
 """SearchAgent — 搜索互联网信息，抓取内容并提炼总结。
 
-流程：search_urls → fetch_content → summarize
+流程：extract_keywords → search_urls → fetch_content → summarize
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from langgraph.graph import END, START, MessagesState
 from ai_hub_agents.core import BaseAgent
 from ai_hub_agents.core.llm import resolve_lite_llm
 
-from .nodes import make_fetch_content, make_search_urls, make_summarize
+from .nodes import make_extract_keywords, make_fetch_content, make_search_urls, make_summarize
 from .providers import resolve_provider
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ class SearchAgent(BaseAgent):
 
     class State(MessagesState):
         search_query: str
+        original_query: str
         search_results: list[dict]
         search_fetched: list[dict]
         search_summary: str
@@ -50,10 +51,11 @@ class SearchAgent(BaseAgent):
         lite = resolve_lite_llm(llm)
 
         cls.nodes({
+            "extract_keywords": make_extract_keywords(lite),
             "search_urls": make_search_urls(provider, max_results=max_results),
             "fetch_content": make_fetch_content(),
             "summarize": make_summarize(lite),
         })
-        cls.flow(START, "search_urls", "fetch_content", "summarize", END)
+        cls.flow(START, "extract_keywords", "search_urls", "fetch_content", "summarize", END)
 
         return cls.compile()

@@ -28,7 +28,7 @@ def make_summarize(llm: BaseChatModel):
 
     def summarize(state: dict[str, Any]) -> dict[str, Any]:
         fetched: list[dict] = state.get("search_fetched", [])
-        query: str = state.get("search_query", "")
+        query: str = state.get("original_query") or state.get("search_query", "")
 
         if not fetched:
             return {"search_summary": "", "messages": [AIMessage(content="未能获取到搜索内容。")]}

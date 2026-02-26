@@ -4,7 +4,7 @@ import argparse
 
 from ai_hub_agents.search import SearchAgent
 from ai_hub_agents.server import serve
-from ai_hub_agents.test import load_test_llm, setup_logging
+from ai_hub_agents.test import load_test_llm, setup_logging, SqliteDebugRenderer, ColorStreamRenderer
 
 
 def main() -> None:
@@ -16,7 +16,11 @@ def main() -> None:
 
     setup_logging()
     llm = load_test_llm()
-    serve(SearchAgent, llm, host=args.host, port=args.port, provider_name=args.provider)
+    renderers = [
+        ColorStreamRenderer(),
+        SqliteDebugRenderer(),
+    ]
+    serve(SearchAgent, llm, host=args.host, port=args.port, provider_name=args.provider, callbacks=renderers)
 
 
 if __name__ == "__main__":

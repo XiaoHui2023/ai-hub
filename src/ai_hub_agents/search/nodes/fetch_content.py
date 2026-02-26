@@ -16,7 +16,7 @@ def _fetch_one(url: str, timeout: int, max_chars: int) -> dict[str, str] | None:
         from curl_cffi import requests
 
         resp = requests.get(
-            "https://hearthstone.huijiwiki.com/wiki/Card/46058",
+            url,
             impersonate="chrome120",
             timeout=timeout,
         )

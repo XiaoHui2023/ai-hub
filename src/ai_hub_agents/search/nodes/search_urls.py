@@ -15,12 +15,15 @@ def make_search_urls(provider: SearchProvider, max_results: int):
     """返回 search_urls 节点函数。"""
 
     def search_urls(state: dict[str, Any]) -> dict[str, Any]:
-        last_msg = state["messages"][-1]
-        query = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+        # 优先使用 extract_keywords 输出的搜索关键词
+        query = state.get("search_query")
+        if not query:
+            last_msg = state["messages"][-1]
+            query = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
 
         logger.info("搜索: %s (provider=%s)", query, provider.name)
         results = provider.search(query, max_results=max_results)
-        logger.info("获取到 %d 条搜索结果", len(results))
+        logger.info(f"获取到 %d 条搜索结果", len(results))
 
         return {
             "search_query": query,

@@ -2,8 +2,9 @@ import argparse
 
 from ai_hub_agents.search import SearchAgent
 from ai_hub_agents.test import ColorStreamRenderer, load_test_llm, setup_logging
+import logging
 
-DEFAULT_QUERY = "LangGraph 是什么？有哪些核心概念？"
+DEFAULT_QUERY = "炉石传说异灵术"
 
 
 def main() -> None:
