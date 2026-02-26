@@ -43,7 +43,7 @@ class SearchAgent(BaseAgent):
         llm: BaseChatModel,
         *,
         provider_name: str | None = None,
-        max_results: int = 5,
+        max_results: int = 10,
         **kwargs: Any,
     ) -> SearchAgent:
         provider = resolve_provider(provider_name)
