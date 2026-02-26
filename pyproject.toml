@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-hub-agents"
-version = "0.1.6"
+version = "0.1.8"
 description = "模块化 AI Agent 框架，基于 LangChain / LangGraph"
 requires-python = ">=3.10"
 dependencies = [
@@ -12,6 +12,7 @@ dependencies = [
     "langchain-core>=0.3",
     "langgraph>=0.2",
     "python-frontmatter>=1.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
