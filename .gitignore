@@ -10,3 +10,6 @@ build/
 output/
 .pytest_cache/
 *.db*
+mcp.json
+config.yaml
+data/
