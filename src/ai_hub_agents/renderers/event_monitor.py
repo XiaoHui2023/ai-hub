@@ -1,4 +1,13 @@
-from ai_hub_agents.callback import UserQuery, AssistantResponse, ToolResponse, ToolCall, LoadMCPTools, AgentCreate
+from ai_hub_agents.callback import (
+    UserQuery,
+    AssistantResponse,
+    ToolResponse,
+    ToolCall,
+    LoadMCPTools,
+    AgentCreate,
+    APIRequest,
+    APIResponse,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -48,3 +57,19 @@ class EventMonitor:
         @AgentCreate
         def _(cb: AgentCreate):
             logger.info(f"{M}📦 [创建代理] {cb.thread_id}{R}")
+
+        @APIRequest
+        def _(cb: APIRequest):
+            if cb.files:
+                s_files = '[' + ", ".join(f"{f.filename}" for f in cb.files) + ']'
+            else:
+                s_files = ""
+            logger.info(f"{M}📥 [API请求] {cb.thread_id}: {cb.query[:100]} {s_files}{R}")
+
+        @APIResponse
+        def _(cb: APIResponse):
+            if cb.files:
+                s_files = '[' + ", ".join(f"{f.filename}" for f in cb.files) + ']'
+            else:
+                s_files = ""
+            logger.info(f"{M}📩 [API响应] {cb.thread_id}: {cb.response[:100]} {s_files}{R}")

@@ -1,14 +1,14 @@
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain.agents import create_agent
-from ai_hub_agents.config import settings,Config
+from ai_hub_agents import settings
 import json
 from typing import List
 from pathlib import Path
 from langchain_core.messages import BaseMessage,HumanMessage,AIMessage
 from contextlib import AsyncExitStack
 from ai_hub_agents.callback import LoadMCPTools,UserQuery,AssistantResponse,AgentCreate
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from .json_store import JsonStore
@@ -16,15 +16,12 @@ import logging
 from .message_simplify import messages_to_simple,simple_to_messages
 from ai_hub_agents.tools import get_all_tools
 from langgraph.graph.state import CompiledStateGraph
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 class Agent(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    config: Config = Field(default_factory=Config)
-    """配置"""
     thread_id: str
     """线程 ID"""
     mcp_client: MultiServerMCPClient = None
@@ -38,14 +35,21 @@ class Agent(BaseModel):
 
     def model_post_init(self,ctx):
         """初始化"""
+        if not settings.llm_api_key:
+            raise ValueError("LLM API 密钥不能为空")
+        if not settings.llm_base_url:
+            raise ValueError("LLM 基础 URL 不能为空")
+        if not settings.llm_model:
+            raise ValueError("LLM 模型不能为空")
+
         self._load_mcp_client()
         self._load_prompt()
         self._load_json_store()
 
     def _load_mcp_client(self):
         """加载 MCP 客户端"""
-        if Path(self.config.mcp_path).exists():
-            with open(self.config.mcp_path, "r", encoding="utf-8") as f:
+        if Path(settings.mcp_path).exists():
+            with open(settings.mcp_path, "r", encoding="utf-8") as f:
                 mcp_metadata = json.load(f)
             mcp_servers: dict = mcp_metadata.get("mcpServers", {})
 
@@ -59,12 +63,12 @@ class Agent(BaseModel):
         self.mcp_client = MultiServerMCPClient(mcp_servers)
         self.mcp_server_names = mcp_servers.keys()
 
-        AgentCreate(thread_id=self.thread_id)
+        AgentCreate.trigger(thread_id=self.thread_id)
 
     def _load_prompt(self):
         """加载提示词"""
-        if Path(self.config.prompt_path).exists():
-            with open(self.config.prompt_path, "r", encoding="utf-8") as f:
+        if Path(settings.prompt_path).exists():
+            with open(settings.prompt_path, "r", encoding="utf-8") as f:
                 prompt = f.read()
         else:
             prompt = ""
@@ -72,7 +76,7 @@ class Agent(BaseModel):
 
     def _load_json_store(self):
         """加载 JSON 存储"""
-        self.json_store = JsonStore(Path(self.config.data_dir) / self.thread_id / self.config.memory_file_name)
+        self.json_store = JsonStore(Path(settings.data_dir) / self.thread_id / settings.memory_file_name)
 
     def _load_memory(self) -> List[BaseMessage]:
         """加载记忆"""
@@ -101,7 +105,7 @@ class Agent(BaseModel):
         Returns:
             对话结果
         """
-        UserQuery(query=query,name=user_name)
+        UserQuery.trigger(query=query,name=user_name)
 
         async with AsyncExitStack() as stack:
             # 同时持有所有服务器的 session
@@ -123,7 +127,7 @@ class Agent(BaseModel):
 
             # 加载工具事件
             tool_names = [tool.name for tool in all_tools]
-            LoadMCPTools(tool_names=tool_names)
+            LoadMCPTools.trigger(tool_names=tool_names)
 
             # 加载 LLM
             llm = ChatOpenAI(
@@ -146,7 +150,7 @@ class Agent(BaseModel):
 
             # AI 回答
             self._append_memory(AIMessage(content=response))
-            AssistantResponse(content=response)
+            AssistantResponse.trigger(content=response)
 
             return response
 
@@ -169,12 +173,12 @@ class Agent(BaseModel):
                     for msg in update.get("messages", []):
                         if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
                             for tc in msg.tool_calls:
-                                ToolCall(
+                                ToolCall.trigger(
                                     tool_name=tc.get("name", ""),
                                     args=tc.get("args", {}),
                                 )
                         elif isinstance(msg, ToolMessage):
-                            ToolResponse(tool_name=getattr(msg, "name", ""), result=msg.content)
+                            ToolResponse.trigger(tool_name=getattr(msg, "name", ""), result=msg.content)
             elif mode == "values":
                 msgs = chunk.get("messages", [])
                 if msgs:

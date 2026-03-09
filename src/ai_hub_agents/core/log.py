@@ -5,17 +5,23 @@ from logging.handlers import RotatingFileHandler
 import colorlog
 from colorama import init as colorama_init
 from typing import Literal
+from ai_hub_agents import settings
 
-def setup_log(dir_name: str | None, level: Literal['info', 'debug', 'warning', 'error', 'critical'] = 'info'):
+LEVEL_MAP = {
+    'info': logging.INFO,
+    'debug': logging.DEBUG,
+    'warning': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL,
+}
+
+def setup_log(dir_name: str | None = None, level: Literal['info', 'debug', 'warning', 'error', 'critical'] = None):
     """设置日志。无文件路径时仅输出到控制台。"""
-    level_map = {
-        'info': logging.INFO,
-        'debug': logging.DEBUG,
-        'warning': logging.WARNING,
-        'error': logging.ERROR,
-        'critical': logging.CRITICAL,
-    }
-    log_level = level_map.get(level.lower(), logging.INFO)
+    # 默认值
+    dir_name = dir_name or settings.log_dir
+    level = level or settings.log_level
+
+    log_level = LEVEL_MAP.get(level.lower(), logging.INFO)
 
     colorama_init()
 
