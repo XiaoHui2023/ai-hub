@@ -45,25 +45,13 @@ def bump_patch(ver: str) -> str:
     parts[-1] = str(int(parts[-1]) + 1)
     return ".".join(parts)
 
-
-def pypi_versions(name: str) -> set[str]:
-    url = f"https://pypi.org/pypi/{name}/json"
-    try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            return set(json.loads(resp.read())["releases"].keys())
-    except Exception:
-        return set()
-
-
 def main() -> None:
     pkg_name = "ai-hub-agents"
     version = read_version()
-    published = pypi_versions(pkg_name)
 
-    while version in published:
-        new = bump_patch(version)
-        print(f"v{version} already on PyPI, bump -> v{new}")
-        version = new
+    new = bump_patch(version)
+    print(f"v{version} already on PyPI, bump -> v{new}")
+    version = new
 
     if version != read_version():
         write_version(version)
