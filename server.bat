@@ -7,6 +7,5 @@ if not exist .venv (
 )
 
 call .venv\Scripts\activate.bat
-pip install -e .
 python examples\server.py config.yaml
 pause
