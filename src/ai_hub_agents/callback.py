@@ -53,27 +53,39 @@ class Callback():
     @classmethod
     def register(cls, func: Callable):
         """注册函数"""
-        if cls.__name__ not in cls.function_registry:
-            cls.function_registry[cls.__name__] = []
-        cls.function_registry[cls.__name__].append(func)
+        try:
+            if cls.__name__ not in cls.function_registry:
+                cls.function_registry[cls.__name__] = []
+            cls.function_registry[cls.__name__].append(func)
+        except Exception as e:
+            logger.exception(f"注册函数{func}失败: {e}")
+            raise e
 
     @classmethod
     def trigger(cls:type[T],*args,**kwargs) -> T:
         """同步触发回调"""
-        self = cls(*args, **kwargs)
+        try:
+            self = cls(*args, **kwargs)
 
-        for func in cls.function_registry.get(cls.__name__, []):
-            func(self)
-        return self
+            for func in cls.function_registry.get(cls.__name__, []):
+                func(self)
+            return self
+        except Exception as e:
+            logger.exception(f"触发回调{cls}失败: {e}")
+            raise e
 
     @classmethod
     async def atrigger(cls:type[T],*args,**kwargs) -> T:
         """异步触发回调"""
-        self = cls(*args, **kwargs)
+        try:
+            self = cls(*args, **kwargs)
 
-        for func in cls.function_registry.get(cls.__name__, []):
-            await func(self)
-        return self
+            for func in cls.function_registry.get(cls.__name__, []):
+                await func(self)
+            return self
+        except Exception as e:
+            logger.exception(f"异步触发回调{cls}失败: {e}")
+            raise e
 
 class LoadMCPTools(Callback):
     """加载 MCP 工具"""
