@@ -63,8 +63,9 @@ def load_settings(input_yaml:str|None):
     if input_yaml:
         with open(input_yaml) as f:
             local_overrides = yaml.safe_load(f)
-        settings = settings.model_copy(update=local_overrides)
-    return settings
+        for key, value in local_overrides.items():
+            if hasattr(settings, key):
+                setattr(settings, key, value)
 
 __all__ = [
     "settings",
