@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-hub-agents"
-version = "0.1.17"
+version = "0.1.18"
 description = "模块化 AI Agent 框架，基于 LangChain / LangGraph"
 requires-python = ">=3.10"
 dependencies = [
@@ -13,24 +13,7 @@ dependencies = [
     "langgraph>=0.2",
     "python-frontmatter>=1.0",
     "python-dotenv>=1.0",
-]
-
-[project.optional-dependencies]
-xlsx = ["openpyxl>=3.0", "pandas>=2.0", "defusedxml>=0.7", "lxml>=4.0"]
-server = [
-    "starlette>=0.27",
-    "uvicorn>=0.20",
-    "python-multipart>=0.0.9",
-    "langgraph-checkpoint-postgres>=2.0",
-    "psycopg[binary,pool]>=3.0",
-]
-memory = ["langgraph-checkpoint-sqlite>=2.0"]
-memory-postgres = ["langgraph-checkpoint-postgres>=2.0", "psycopg[binary,pool]>=3.0"]
-chat = ["langchain-openai>=0.1"]
-search = ["trafilatura>=1.6", "requests>=2.28", "curl_cffi>=0.14.0"]
-client = ["httpx>=0.24"]
-all = [
-    "ai-hub-agents[xlsx,server,memory,chat,search,client]"
+    "pydantic-settings>=2.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]

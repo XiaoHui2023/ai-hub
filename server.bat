@@ -7,5 +7,5 @@ if not exist .venv (
 )
 
 call .venv\Scripts\activate.bat
-
+python examples\server.py config.yaml
 pause
