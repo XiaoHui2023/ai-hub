@@ -15,6 +15,11 @@ dependencies = [
     "python-dotenv>=1.0",
     "pydantic-settings>=2.0.0",
     "colorlog>=6.0",
+    "langchain-mcp-adapters>=0.1.0",
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.22",
+    "langchain-openai>=0.1.0",
+    "filelock>=3.0",
 ]
 
 [tool.hatch.build.targets.wheel]

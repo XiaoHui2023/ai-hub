@@ -13,3 +13,4 @@ output/
 mcp.json
 config.yaml
 data/
+.venv/
