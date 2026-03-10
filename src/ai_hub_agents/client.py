@@ -1,8 +1,9 @@
 import requests
 from pathlib import Path
 import mimetypes
+from .app import ResponseModel
 
-def post(url: str, thread_id: str, query: str, user_name: str, file_paths: list[str]=None) -> dict:
+def post(url: str, thread_id: str, query: str, user_name: str, file_paths: list[str]=None) -> ResponseModel:
     """
     POST 请求
     Args:
@@ -12,7 +13,7 @@ def post(url: str, thread_id: str, query: str, user_name: str, file_paths: list[
         user_name: 用户名称
         file_paths: 文件路径列表
     Returns:
-        dict: 响应数据
+        ResponseModel: 响应数据
     """
     if file_paths is None:
         file_paths = []
@@ -22,7 +23,7 @@ def post(url: str, thread_id: str, query: str, user_name: str, file_paths: list[
         for file in file_paths
     ]
     resp = requests.post(url, data=data, files=files)
-    return resp.json()
+    return ResponseModel.model_validate(resp.json())
 
 def get_content_type(path: str) -> str:
     """
