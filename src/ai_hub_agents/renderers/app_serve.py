@@ -7,7 +7,7 @@ class AppServe:
         async def _(cb: APIRoundtrip):
             if cb.request.files:
                 raise NotImplementedError("文件上传功能未实现")
-            response = await Agent(thread_id=cb.request.thread_id).run(cb.request.query)
+            response = await Agent(thread_id=cb.request.thread_id).run(query=cb.request.query,user_name=cb.request.user_name)
             cb.response = APIResponse.trigger(
                 thread_id=cb.request.thread_id,
                 response=response,

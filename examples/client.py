@@ -12,10 +12,11 @@ def get_args() -> argparse.Namespace:
 
 if __name__ == '__main__':
     args = get_args()
+    print(f"-> {args.query}")
     response = client.post(
         thread_id="example-client",
         url=args.url,
         query=args.query,
         user_name=args.user_name,
     )
-    print(response)
+    print(f"<- {response}")
